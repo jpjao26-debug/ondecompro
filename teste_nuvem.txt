@@ -1,0 +1,12 @@
+Teste na nuvem (servidor do GitHub) — 27/11/2026 14:15
+
+OK   tenda (10 s)
+     {"produtos": 271, "exemplo": [["Arroz Integral Camil 1kg", 6.49], ["Bebida Vegetal A Tal da Castanha Amêndoa 1l", 17.9], ["Bebida Vegetal A Tal da Castanha Caju/Para 1l", 17.9]], "seg_produtos": 9, "encartes": 2, "paginas_encarte": 6, "seg_encartes": 1}
+OK   shibata (89 s)
+     {"produtos": 266, "exemplo": [["Leite Condensado Semidesnatado Zero Lactose Moça Caixa - 395g", 11.99], ["Leite Condensado Semidesnatado Piracanjuba Caixa - 395g", 6.49], ["Leite Condensado Integral Italac Caixa - 395g", 6.99]], "seg_produtos": 86, "encartes": 1, "paginas_encarte": 2, "seg_encartes": 3}
+OK   paodeacucar (5 s)
+     {"produtos": 168, "exemplo": [["Melão Verde Em Pedaço 1,1kg", 16.49], ["Castanha Portuguesa 500g", 74.95], ["Brusqueta de Pimentão LA PASTINA 280g", 32.99]], "seg_produtos": 5, "encartes": 0, "paginas_encarte": 0, "seg_encartes": 0}
+OK   semar (192 s)
+     {"produtos": 300, "exemplo": [["Adoçante Tal E Qual Tradicional 60g", 14.99], ["Arroz Selvagem Gourmet Camil 250g", 39.99], ["Arroz Preto Gourmet Camil 250g", 11.99]], "seg_produtos": 62, "encartes": 0, "paginas_encarte": 0, "seg_encartes": 131}
+FALHOU maximo (0 s)
+     {"produtos": 0, "exemplo": [], "seg_produtos": 0, "encartes": 0, "paginas_encarte": 0, "seg_encartes": 0}
