@@ -7,3 +7,5 @@ dados/bruto_*.json
 site/dados/
 logs/
 dados/encartes_semar/
+navegador_robo/
+dados/encartes_conde.json

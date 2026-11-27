@@ -1,6 +1,6 @@
 /* Service worker: abre rápido e funciona sem internet com os últimos preços baixados. */
-const VERSAO = "oc-v1";
-const BASE = ["./", "index.html", "estilo.css", "app.js", "manifest.webmanifest", "icones/icone-192.png"];
+const VERSAO = "oc-v3";
+const BASE = ["./", "index.html", "estilo.css?v=3", "app.js?v=3", "manifest.webmanifest", "icones/icone-192.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(VERSAO).then((c) => c.addAll(BASE)).then(() => self.skipWaiting()));
@@ -8,7 +8,8 @@ self.addEventListener("install", (e) => {
 
 self.addEventListener("activate", (e) => {
   e.waitUntil(
-    caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== VERSAO).map((k) => caches.delete(k))))
+    // só apaga caches antigos deste app ("oc-"); o de Maringá ("ocm-") fica (mesmo endereço base)
+    caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith("oc-") && k !== VERSAO).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });

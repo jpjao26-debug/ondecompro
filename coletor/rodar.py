@@ -9,10 +9,14 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-from . import comparar, ler_encartes, semar, shibata, tenda
-from .comum import DADOS, RAIZ, ler_json, log, salvar_json
+import hashlib
+import re
 
-COLETORES = {"tenda": tenda, "shibata": shibata, "semar": semar}
+from . import comparar, conde, ler_encartes, maximo, paodeacucar, semar, shibata, tenda
+from .comum import DADOS, RAIZ, ler_json, log, salvar_json, sem_acento
+
+COLETORES = {"tenda": tenda, "shibata": shibata, "semar": semar, "maximo": maximo, "conde": conde, "pao": paodeacucar}
+SO_ENCARTE = {"maximo", "conde"}  # não vende online: o preço vem só do encarte
 
 
 LOCAIS_CHAVES = [
@@ -66,6 +70,58 @@ def aplicar_encartes(brutos, promos):
             p["preco"] = preco
 
 
+def _real(cond):
+    """Condição que muda o preço (a partir de 3 un, no app...). "Preço por kg" é só a unidade."""
+    c = (cond or "").strip().lower()
+    so_unidade = ("kg", "quilo", "100g", "cada", "unidade", "und", "un.", "bdj", "bandeja", "pct", "peça")
+    return bool(c) and not any(u in c for u in so_unidade)
+
+
+def produtos_do_encarte(promos, mercado):
+    """Para quem só tem encarte: cada oferta lida vira um produto, para comparar com os outros mercados.
+    Quando o encarte tem dois preços do mesmo produto (normal e "a partir de 3 un" / "no app"),
+    o preço normal é o que conta e o outro vira aviso."""
+    grupos = {}
+    for of in promos:
+        if of.get("m") != mercado or not of.get("preco"):
+            continue
+        partes = [of.get("produto") or ""]
+        base = sem_acento(partes[0]).lower()
+        for extra in (of.get("marca"), of.get("tamanho")):
+            if extra and sem_acento(extra).lower() not in base:
+                partes.append(extra)
+        nome = re.sub(r"\s+", " ", " ".join(partes)).strip()
+        if not nome:
+            continue
+        chave = hashlib.md5(sem_acento(nome).lower().encode()).hexdigest()[:12]
+        of["id"] = f"{mercado}:enc:{chave}"  # liga a oferta do encarte ao item no app
+        grupos.setdefault(chave, (nome, []))[1].append(of)
+    saida = []
+    for chave, (nome, ofs) in grupos.items():
+        normais = [o for o in ofs if not _real(o.get("condicao"))]
+        of = normais[0] if normais else ofs[0]
+        outros = [(float(o["preco"]), o.get("condicao").strip()) for o in ofs
+                  if _real(o.get("condicao")) and float(o["preco"]) < float(of["preco"])]
+        for o in ofs:  # preço de clube/cartão/app lido à parte
+            if o.get("preco_clube") and float(o["preco_clube"]) < float(of["preco"]):
+                outros.append((float(o["preco_clube"]), (o.get("clube") or "clube").strip()))
+        outros = sorted(set(outros))
+        aviso = " · ".join(f"{c[0].upper() + c[1:]}: R$ {p:.2f}".replace(".", ",") for p, c in outros) or None
+        cond = (of.get("condicao") or "").lower()
+        por_kg = "kg" in cond or (of.get("tamanho") or "").strip().lower() in ("kg", "1kg", "o kg")
+        promo = {"preco": float(of["preco"]), "tipo": "Encarte", "ate": of.get("fim") or of.get("periodo"),
+                 "preco_de": float(of["preco_normal"]) if of.get("preco_normal") else None,
+                 "condicao": of.get("condicao") if _real(of.get("condicao")) else None}
+        foto = next((o.get("foto") for o in ofs if o.get("foto")), None)
+        saida.append({
+            "mercado": mercado, "id": f"{mercado}:enc:{chave}", "nome": nome, "marca": of.get("marca"),
+            "ean": None, "preco": float(of["preco"]), "atacado": [], "promo": promo, "categoria": "Encarte",
+            "unidade": "kg" if por_kg else None, "url": of.get("img"), "foto": foto, "disponivel": True,
+            "encarte": True, "aviso": aviso,
+        })
+    return saida
+
+
 def main():
     carregar_chaves()
     escolhidos = [m.strip() for m in os.getenv("MERCADOS", ",".join(COLETORES)).split(",") if m.strip()]
@@ -83,7 +139,7 @@ def main():
             encs = []
         return produtos, encs
 
-    # os mercados são sites diferentes, então coletamos os três ao mesmo tempo
+    # os mercados são sites diferentes, então coletamos todos ao mesmo tempo
     with ThreadPoolExecutor(max_workers=len(escolhidos) or 1) as pool:
         tarefas = {pool.submit(coletar_um, m): m for m in escolhidos}
         for t in as_completed(tarefas):
@@ -101,6 +157,9 @@ def main():
                     brutos[m] = antigo
     promos = ler_encartes.processar(encartes, brutos)
     aplicar_encartes(brutos, promos)
+    for m in SO_ENCARTE & set(escolhidos):
+        brutos[m] = produtos_do_encarte(promos, m)
+        log(f"{m}: {len(brutos[m])} ofertas lidas do encarte")
     comparar.gerar(brutos, encartes, promos)
     if falhas:
         log(f"Atenção: falha na coleta de {', '.join(falhas)}")

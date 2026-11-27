@@ -1,6 +1,8 @@
 ﻿# OndeCompro? - roda a coleta do dia e publica o app (chamado pelo Agendador de Tarefas)
 $ErrorActionPreference = "Continue"
 Set-Location $PSScriptRoot
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 $env:PYTHONIOENCODING = "utf-8"
 $env:PYTHONUTF8 = "1"
 $PSDefaultParameterValues["Out-File:Encoding"] = "utf8"
@@ -11,6 +13,8 @@ function RodarPython { if (Get-Command py.exe -ErrorAction SilentlyContinue) { &
 
 "===== Inicio: $(Get-Date -Format 'dd/MM/yyyy HH:mm') =====" | Out-File $log -Append -Encoding utf8
 git pull --rebase --autostash *>> $log
+# instala o que faltar (ex.: leitor de PDF para o encarte do Máximo); rápido quando já está tudo instalado
+RodarPython -m pip install -q --disable-pip-version-check -r requirements.txt *>> $log
 RodarPython -m coletor.rodar *>> $log
 if ($LASTEXITCODE -eq 0) {
     RodarPython -m coletor.publicar *>> $log

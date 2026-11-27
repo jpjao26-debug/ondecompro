@@ -1,7 +1,7 @@
 """Coletor do Tenda Atacado — usa a API pública do site (a mesma que o site usa).
 
 A loja de Ubatuba é a filial 72 (CT57). O preço do site é único para a rede;
-o estoque vem por filial, então marcamos se há estoque em Ubatuba.
+o estoque vem por filial: marcamos se há estoque em Ubatuba, e produto que a filial 72 nem lista fica de fora.
 """
 import os
 import re
@@ -26,7 +26,7 @@ def _promo(p):
                 ate = m.group(1)
         tipo = (pr.get("template") or "Promoção").capitalize()
         if tipo.upper() == "DESCONTOU":
-            tipo = "Descontou (preço no app Tenda)"
+            tipo = "Descontou (cadastro no app Tenda + CPF no caixa)"
         return {"preco": float(preco), "tipo": tipo, "ate": ate}
     return None
 
@@ -39,9 +39,19 @@ def _produto(p, depto_nome):
     if not preco:
         return None
     estoque_uba = None
-    for inv in p.get("inventory") or []:
+    inventario = p.get("inventory") or []
+    for inv in inventario:
         if str(inv.get("branchId")) == FILIAL_UBATUBA:
             estoque_uba = (inv.get("totalAvailable") or 0) > 0
+    if inventario and estoque_uba is None:
+        # a loja de Ubatuba nem aparece na lista: produto só de algumas lojas (às vezes com preço especial
+        # delas, ex.: Coca-Cola 3L a R$ 5,97 só em 4 lojas) — não é vendido aqui
+        return None
+    promo = _promo(p)
+    if promo and promo["tipo"].startswith("Descontou") and promo["preco"] < float(preco):
+        # decisão do usuário: o preço Descontou conta como o preço do Tenda; o normal fica riscado
+        promo["preco_de"] = float(preco)
+        preco = promo["preco"]
     return {
         "mercado": "tenda",
         "id": f"tenda:{p.get('id')}",
@@ -53,7 +63,7 @@ def _produto(p, depto_nome):
             {"qtd": w.get("minQuantity"), "preco": float(w.get("price"))}
             for w in (p.get("wholesalePrices") or []) if w.get("price")
         ],
-        "promo": _promo(p),
+        "promo": promo,
         "categoria": depto_nome,
         "url": (p.get("url") or "").replace("https://tendaatacado", "https://www.tendaatacado"),
         "foto": p.get("thumbnail"),
@@ -70,30 +80,42 @@ NOMES_DEPTO = {
 }
 
 
+SIMULTANEOS = int(os.getenv("TENDA_SIMULTANEOS", "3"))  # departamentos coletados ao mesmo tempo
+
+
+def _coletar_depto(d, nome, limite_paginas):
+    s = sessao()  # uma conexão por departamento
+    itens, pagina, total = [], 1, 1
+    while pagina <= total:
+        # "order" é obrigatório para a paginação funcionar; por nome a ordem fica estável
+        j = pegar_json(s, f"{API}/category/{d['id']}/products?page={pagina}&order=name&filters=false")
+        total = j.get("total_pages") or 1
+        if limite_paginas:
+            total = min(total, limite_paginas)
+        for p in j.get("products") or []:
+            item = _produto(p, nome)
+            if item:
+                itens.append(item)
+        pagina += 1
+        time.sleep(PAUSA)
+    log(f"Tenda · {nome}: {len(itens)} produtos")
+    return itens
+
+
 def coletar(limite_paginas=None):
-    s = sessao()
-    deptos = pegar_json(s, f"{API}/departments")
+    from concurrent.futures import ThreadPoolExecutor
+
+    deptos = pegar_json(sessao(), f"{API}/departments")
+    # pula "marca própria" (repete itens) e food service
+    escolhidos = [(d, NOMES_DEPTO[d.get("link")]) for d in deptos if d.get("link") in NOMES_DEPTO]
+    with ThreadPoolExecutor(max_workers=max(1, SIMULTANEOS)) as pool:
+        resultados = list(pool.map(lambda dn: _coletar_depto(dn[0], dn[1], limite_paginas), escolhidos))
     produtos, vistos = [], set()
-    for d in deptos:
-        link = d.get("link")
-        if link not in NOMES_DEPTO:  # pula "marca própria" (repete itens) e food service
-            continue
-        nome = NOMES_DEPTO[link]
-        pagina, total = 1, 1
-        while pagina <= total:
-            # "order" é obrigatório para a paginação funcionar; por nome a ordem fica estável
-            j = pegar_json(s, f"{API}/category/{d['id']}/products?page={pagina}&order=name&filters=false")
-            total = j.get("total_pages") or 1
-            if limite_paginas:
-                total = min(total, limite_paginas)
-            for p in j.get("products") or []:
-                item = _produto(p, nome)
-                if item and item["id"] not in vistos:
-                    vistos.add(item["id"])
-                    produtos.append(item)
-            pagina += 1
-            time.sleep(PAUSA)
-        log(f"Tenda · {nome}: {len(produtos)} produtos até agora")
+    for itens in resultados:  # mesma ordem dos departamentos, sem repetir produto
+        for item in itens:
+            if item["id"] not in vistos:
+                vistos.add(item["id"])
+                produtos.append(item)
     return produtos
 
 

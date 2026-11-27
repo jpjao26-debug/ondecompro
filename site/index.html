@@ -3,45 +3,59 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#15803d">
+  <meta name="theme-color" content="#082652">
   <meta name="description" content="Preços dos mercados de Ubatuba, comparados todo dia.">
   <title>OndeCompro?</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icones/icone-192.png">
   <link rel="apple-touch-icon" href="icones/icone-192.png">
-  <link rel="stylesheet" href="estilo.css">
+  <link rel="stylesheet" href="estilo.css?v=3">
 </head>
 <body>
   <header class="topo">
     <div class="topo-linha">
-      <h1 class="marca">OndeCompro<span>?</span></h1>
+      <h1 class="marca"><svg class="bandeira" viewBox="0 0 30 21" aria-hidden="true"><rect y="0.000" width="30" height="1.635" fill="#0d4fa0"/><rect y="1.615" width="30" height="1.635" fill="#fff"/><rect y="3.231" width="30" height="1.635" fill="#0d4fa0"/><rect y="4.846" width="30" height="1.635" fill="#fff"/><rect y="6.462" width="30" height="1.635" fill="#0d4fa0"/><rect y="8.077" width="30" height="1.635" fill="#fff"/><rect y="9.692" width="30" height="1.635" fill="#0d4fa0"/><rect y="11.308" width="30" height="1.635" fill="#fff"/><rect y="12.923" width="30" height="1.635" fill="#0d4fa0"/><rect y="14.538" width="30" height="1.635" fill="#fff"/><rect y="16.154" width="30" height="1.635" fill="#0d4fa0"/><rect y="17.769" width="30" height="1.635" fill="#fff"/><rect y="19.385" width="30" height="1.635" fill="#0d4fa0"/><rect width="12.6" height="11.308" fill="#d62828"/><path d="M5.6 1.8h1.4v8.2H5.6zM3.1 4.3h6.4v1.4H3.1z" fill="#f5b301"/><path d="M6.3 1 5.7 1.9h1.2zM6.3 10.9l-.6-.9h1.2zM2.3 5l.9-.6v1.2zM10.3 5l-.9-.6v1.2z" fill="#f5b301"/></svg><span class="nome-app">OndeCompro<span>?</span></span></h1>
       <span id="atualizado" class="atualizado"></span>
     </div>
+    <div class="busca-caixa">
     <label class="busca">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4a6 6 0 1 0 3.5 10.9l4.3 4.3 1.4-1.4-4.3-4.3A6 6 0 0 0 10 4zm0 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8z"/></svg>
       <input id="campo-busca" type="search" placeholder="Buscar produto (ex.: arroz 5kg)" autocomplete="off" enterkeyhint="search">
     </label>
+    <div id="sugestoes" class="sugestoes" hidden></div>
+    </div>
   </header>
 
   <main id="conteudo" class="conteudo" aria-live="polite">
-    <p class="carregando">Carregando preços…</p>
+    <div class="esq esq-hero"></div>
+    <div class="esq esq-linha" style="width:55%"></div>
+    <div class="grade" style="margin-top:12px"><div class="esq-card"><div class="esq"></div><div class="esq esq-linha"></div><div class="esq esq-linha" style="width:60%"></div></div><div class="esq-card"><div class="esq"></div><div class="esq esq-linha"></div><div class="esq esq-linha" style="width:60%"></div></div><div class="esq-card"><div class="esq"></div><div class="esq esq-linha"></div><div class="esq esq-linha" style="width:60%"></div></div><div class="esq-card"><div class="esq"></div><div class="esq esq-linha"></div><div class="esq esq-linha" style="width:60%"></div></div></div>
   </main>
 
   <nav class="abas" aria-label="Navegação">
+    <span class="indicador" aria-hidden="true"></span>
     <button data-aba="inicio" class="ativa"><svg viewBox="0 0 24 24"><path d="M12 3 3 10v11h6v-6h6v6h6V10z"/></svg>Início</button>
     <button data-aba="catalogo"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zm9 0h7v7h-7zM4 13h7v7H4zm9 0h7v7h-7z"/></svg>Catálogo</button>
     <button data-aba="favoritos"><svg viewBox="0 0 24 24"><path d="M12 21s-7.5-4.6-9.5-9.2C1 8.2 3.3 4.5 7 4.5c2 0 3.6 1.1 5 2.8 1.4-1.7 3-2.8 5-2.8 3.7 0 6 3.7 4.5 7.3C19.5 16.4 12 21 12 21z"/></svg>Favoritos</button>
     <button data-aba="encartes"><svg viewBox="0 0 24 24"><path d="M4 3h12l4 4v14H4zm11 1.5V8h3.5zM7 11h10v2H7zm0 4h10v2H7z"/></svg>Encartes</button>
+    <button data-aba="carrinho"><span class="icone-aba"><svg class="traco" viewBox="0 0 24 24"><path d="M2.5 3.5h2.6l2.4 10.5h10.6l2.2-7.5H6"/><circle cx="9" cy="19" r="1.6"/><circle cx="17" cy="19" r="1.6"/></svg><b id="selo-carrinho" class="selo-carrinho" hidden></b></span>Carrinho</button>
   </nav>
 
   <div id="folha" class="folha" hidden>
     <div class="folha-fundo" data-fechar></div>
     <div class="folha-corpo" role="dialog" aria-modal="true">
+      <div class="puxador" aria-hidden="true"></div>
       <button class="folha-fechar" data-fechar aria-label="Fechar">×</button>
       <div id="folha-conteudo"></div>
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <div id="zoom" class="zoom" hidden>
+    <button class="zoom-fechar" data-fechar-zoom aria-label="Fechar">×</button>
+    <div class="zoom-palco"><img id="zoom-img" alt="Foto ampliada" referrerpolicy="no-referrer" draggable="false"></div>
+    <p class="zoom-dica">Use dois dedos ou toque duas vezes para aproximar</p>
+  </div>
+
+  <script src="app.js?v=3"></script>
 </body>
 </html>

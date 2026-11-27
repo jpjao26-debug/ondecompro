@@ -28,9 +28,13 @@ DEPARTAMENTOS = {
 
 BUSCAR_JS = """
 async ([url]) => {
-  const r = await fetch(url);
-  if (!r.ok) return {erro: r.status};
-  return await r.json();
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return {erro: r.status};
+    return await r.json();
+  } catch (e) {
+    return {erro: String(e)};
+  }
 }
 """
 
@@ -59,11 +63,20 @@ def _produto(h, categoria):
         promo = {"preco": float(pr["promotionalPrice"]), "tipo": "Oferta", "ate": None, "preco_de": float(preco)}
         preco = pr["promotionalPrice"]
     q = h.get("quantity") or {}
+    # preço de clube (grupo de clientes do Semar): decisão do usuário — só aviso, não muda o preço
+    aviso = None
+    for pp in h.get("personaPromotions") or []:
+        v = pp.get("promotionPrice")
+        if pp.get("active") and v and v < preco:
+            ate = (pp.get("endDate") or "")[:10]
+            ate = f" até {ate[8:10]}/{ate[5:7]}" if len(ate) == 10 else ""
+            aviso = f"Clientes do clube Semar: R$ {v:.2f}{ate}".replace(".", ",")
+            break
     return {
         "mercado": "semar",
         "id": f"semar:{h.get('id')}",
         "nome": (h.get("name") or "").strip(),
-        "marca": None,
+        "marca": h.get("brandName") or None,
         "ean": None,
         "preco": float(preco),
         "atacado": [],
@@ -73,6 +86,7 @@ def _produto(h, categoria):
         "url": f"{SITE}/{LOJA_SLUG}/produtos/{h.get('id')}/{h.get('slug') or ''}",
         "foto": h.get("image"),
         "disponivel": (q.get("inStock") or 0) > 0 if q else True,
+        "aviso": aviso,
     }
 
 
@@ -90,8 +104,10 @@ def coletar(limite_paginas=None):
             r = pg.evaluate(BUSCAR_JS, [teste])
             if r and "erro" not in r:
                 break
-            log(f"Semar · busca recusada no modo invisível ({(r or {}).get('erro')}); abrindo o navegador minimizado")
             nav.close()
+            if janela:
+                raise RuntimeError(f"Semar recusou a busca mesmo com o navegador aberto ({(r or {}).get('erro')})")
+            log(f"Semar · busca recusada no modo invisível ({(r or {}).get('erro')}); abrindo o navegador minimizado")
         for cid, nome in DEPARTAMENTOS.items():
             inicio, antes, paginas = 0, len(produtos), 0
             while True:
@@ -130,15 +146,24 @@ def encartes():
     pasta.mkdir(parents=True, exist_ok=True)
     saida = []
     with sync_playwright() as p:
-        nav, ctx = _abrir(p)
-        pg = ctx.new_page()
-        pg.goto(f"{SITE}/{LOJA_SLUG}/encartes/sp/ubatuba/ubatuba-ii-ressaca-26-entrega-e-retirada",
-                wait_until="domcontentloaded", timeout=90000)
-        pg.wait_for_timeout(4000)
-        html = pg.content()
+        # o endereço antigo (/encartes/sp/ubatuba/...) parou de funcionar; a lista agora fica em /loja-26.../encartes
         folhetos = []
-        for m in re.finditer(r'"StorefrontFlyer:(\d+)":\{"__typename":"StorefrontFlyer","id":"\d+","title":"((?:[^"\\]|\\.)*)"', html):
-            folhetos.append((m.group(1), json.loads('"' + m.group(2) + '"')))
+        for janela in (False, True):
+            nav, ctx = _abrir(p, janela)
+            pg = ctx.new_page()
+            pg.goto(f"{SITE}/{LOJA_SLUG}/encartes", wait_until="domcontentloaded", timeout=90000)
+            pg.wait_for_timeout(5000)
+            html = pg.content()
+            for m in re.finditer(r'"StorefrontFlyer:(\d+)":\{"__typename":"StorefrontFlyer","id":"\d+","title":"((?:[^"\\]|\\.)*)"', html):
+                folhetos.append((m.group(1), json.loads('"' + m.group(2) + '"')))
+            if folhetos:
+                break
+            nav.close()
+            if not janela:
+                log("Semar · encartes não carregaram no modo invisível; abrindo o navegador minimizado")
+        if not folhetos:
+            log("Semar · nenhum encarte encontrado")
+            return saida
         for fid, titulo in dict(folhetos).items():
             respostas = []
 
@@ -146,7 +171,7 @@ def encartes():
                 if "/1200x0/" in resp.url:
                     respostas.append(resp)
             pg.on("response", guardar)
-            pg.goto(f"{SITE}/encartes/{fid}", wait_until="domcontentloaded", timeout=90000)
+            pg.goto(f"{SITE}/{LOJA_SLUG}/encartes/{fid}", wait_until="domcontentloaded", timeout=90000)
             pg.wait_for_timeout(4000)
             pg.remove_listener("response", guardar)
             urls = []

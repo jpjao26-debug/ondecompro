@@ -14,8 +14,9 @@ App pessoal que mostra, todo dia, os preços dos mercados de Ubatuba e onde cada
 |---|---|
 | `instalar.bat` | Instala tudo e agenda a coleta. É só dar dois cliques. |
 | `rodar_agora.bat` | Roda uma coleta na hora, sem esperar o horário. |
+| `entrar_instagram.bat` | Conecta o robô ao Instagram com a sua conta (para ler as ofertas do Conde). Uma vez só, ou quando o log pedir. |
 | `rodar.ps1` | O que o Agendador de Tarefas executa: coleta, compara e publica. |
-| `coletor/` | O robô (Python): `tenda.py`, `shibata.py`, `semar.py`, `ler_encartes.py`, `comparar.py`, `publicar.py`. |
+| `coletor/` | O robô (Python): `tenda.py`, `shibata.py`, `semar.py`, `maximo.py`, `conde.py`, `paodeacucar.py`, `ler_encartes.py`, `comparar.py`, `publicar.py`. |
 | `site/` | O app que abre no celular. |
 | `dados/` | Histórico de preços e leitura dos encartes (fica guardado no GitHub). |
 | `logs/` | Um resumo de cada coleta, por dia. |
@@ -37,6 +38,19 @@ App pessoal que mostra, todo dia, os preços dos mercados de Ubatuba e onde cada
    - No fim, responda **s** pra fazer a primeira coleta.
 6. **Ligar o app:** no GitHub, abra o repositório → **Settings → Pages** → em *Branch*, escolha **gh-pages** e
    **/(root)** → **Save**. Em 1–2 minutos aparece o link (`https://SEU-USUARIO.github.io/ondecompro/`).
+
+## Conde (Instagram)
+
+O Conde não tem loja online: as ofertas saem nos posts do Instagram **@condesupermercados**.
+O robô entra com a **sua** conta do Instagram, num Edge só dele (pasta `navegador_robo`, que **não** vai para o GitHub).
+
+1. Dê dois cliques em **`entrar_instagram.bat`**.
+2. Na janela do Edge que abrir, entre com a sua conta (o robô não vê nem guarda a senha).
+3. Ele testa sozinho e mostra quantos posts de ofertas achou.
+
+Uma vez por dia, na coleta, ele abre só o perfil do Conde, pega as fotos dos posts de ofertas dos últimos 7 dias e a IA lê os preços.
+Se o log disser que o Instagram pediu para entrar de novo, é só repetir o `entrar_instagram.bat`.
+No outro PC (domingos) é preciso fazer o mesmo uma vez.
 
 ## Instalação no outro PC (domingos)
 
