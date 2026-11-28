@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://ondecomproubatuba.com.br/sitemap.xml
